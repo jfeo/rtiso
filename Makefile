@@ -1,20 +1,17 @@
-CC=gcc
-CFLAGS=-I. -DGLEW_STATIC
-LDLIBS=-lGL -lglfw -lGLEW
-OBJS=ctw.o renderer.o
-SRCS=ctw.c renderer.c
-DEPS=renderer.h
+SRCDIR=$(shell pwd)/src
+BINDIR=$(shell pwd)/bin
+OBJDIR=$(shell pwd)/obj
+export BINDIR
+export OBJDIR
 
-run: ctw
-	./ctw
+.PHONY: build
+build:
+	$(MAKE) -C $(SRCDIR) build
 
-ctw: $(OBJS)
-	$(CC) -o ctw $(OBJS) $(CFLAGS) $(LIBS)
-
-%.o: $(SRCS)
-	$(CC) $(CFLAGS) $(LIBS) -c $^
+.PHONY: run
+run: build
+	$(BINDIR)/ctw
 
 .PHONY: clean
-
 clean:
-	rm -f *.o ctw
+	$(MAKE) -C $(SRCDIR) clean
