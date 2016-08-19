@@ -1,15 +1,18 @@
 CC=gcc
-CFLAGS=-I.
-LIBS=-lGL
-DEPS=
+CFLAGS=-I. -DGLEW_STATIC
+LDLIBS=-lGL -lglfw -lGLEW
+OBJS=ctw.o renderer.o
+SRCS=ctw.c renderer.c
+DEPS=renderer.h
 
-%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+run: ctw
+	./ctw
 
-ctw: ctw.o
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
+ctw: $(OBJS)
+	$(CC) -o ctw $(OBJS) $(CFLAGS) $(LIBS)
 
-all: ctw
+%.o: $(SRCS)
+	$(CC) $(CFLAGS) $(LIBS) -c $^
 
 .PHONY: clean
 
