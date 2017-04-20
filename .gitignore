@@ -35,3 +35,6 @@
 # Directories
 obj
 bin
+
+# ctags
+tags
