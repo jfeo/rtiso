@@ -1,2 +1,2 @@
-# ctw
-Simple tower defence game, written in C.
+# rtiso
+A real-time isometric game engine.
