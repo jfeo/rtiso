@@ -6,12 +6,13 @@ export OBJDIR
 
 .PHONY: build
 build:
-	$(MAKE) -C $(SRCDIR) build
+	$(MAKE) -C $(SRCDIR)
 
 .PHONY: run
 run: build
-	$(BINDIR)/ctw
+	$(BINDIR)/rtiso
 
 .PHONY: clean
 clean:
-	$(MAKE) -C $(SRCDIR) clean
+	rm -rf $(BINDIR)
+	rm -rf $(OBJDIR)

@@ -1,20 +1,17 @@
 CC=gcc
-CFLAGS=-I. -DGLEW_STATIC
-LDLIBS=-lGL -lglfw -lGLEW
-SRCS=ctw.c renderer.c
+CFLAGS=-I/usr/include/freetype2 -I. -DGLEW_STATIC -std=gnu99 -pedantic
+LDLIBS=-lrt -lGL -lglfw -lGLEW -lm -lSOIL -lfreetype
+SRCS=util.c shader.c renderer.c rtiso.c map.c texture.c coord.c unit.c
 OBJS=$(addprefix $(OBJDIR)/,$(SRCS:.c=.o))
-DEPS=renderer.h
+DEPS=renderer.h coord.h util.h shader.h sprite.h linmath.h map.h texture.h coord.h unit.h
 BINDIR?=bin
 
-.PHONY: build
-build: $(OBJS)
-	mkdir -p $(BINDIR)
-	$(CC) -o $(BINDIR)/ctw $(OBJS) $(CFLAGS) $(LDLIBS)
+all: $(BINDIR)/rtiso
 
-%.o: %.c
-	mkdir -p $(OBJDIR)
-	$(CC) $(CFLAGS) $(LIBS) -c $^ -o $(OBJDIR)/$@
+$(BINDIR)/rtiso: $(OBJS)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(LDLIBS) -o $(BINDIR)/rtiso $(OBJS) 
 
-.PHONY: clean
-clean:
-	rm -f *.o ctw
+$(OBJDIR)/%.o: %.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(LDLIBS) -c $^ -o $@
