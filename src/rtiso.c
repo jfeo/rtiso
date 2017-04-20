@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-	GLFWwindow* window = glfwCreateWindow(window_size.x, window_size.y, "ctw", NULL, NULL); // Windowed
+	GLFWwindow* window = glfwCreateWindow(window_size.x, window_size.y, "rtiso", NULL, NULL); // Windowed
 	glfwMakeContextCurrent(window); // select window
 
 	// initialize glew
