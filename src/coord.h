@@ -17,6 +17,9 @@ struct coord_window {
 	double x, y;
 };
 
+//
+double coord_real_dist(struct coord_real a, struct coord_real b);
+
 // conversions between coordinates
 struct coord_tile coord_tile_from_camera(struct coord_camera pos, int up);
 struct coord_tile coord_tile_from_real(struct coord_real pos);

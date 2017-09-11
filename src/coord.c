@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include <math.h>
 
+double coord_real_dist(struct coord_real a, struct coord_real b) {
+	return sqrt(pow(a.nw - b.nw, 2) + pow(a.ne - b.ne, 2) + pow(a.up - b.up, 2));
+}
+
 struct coord_tile coord_tile_from_camera(struct coord_camera pos, int up) {
 	struct coord_tile result;
 	result = coord_tile_from_real(coord_real_from_camera(pos, (float)up));

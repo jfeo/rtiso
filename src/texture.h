@@ -1,7 +1,7 @@
 #ifndef __RTISO_TEXTURE_H__
 #define __RTISO_TEXTURE_H__
 
-#include <GL/glew.h>
+#include <GL/gl.h>
 
 struct texture {
 	GLuint id;

@@ -5,12 +5,15 @@
 #include <math.h>
 
 
+#include "animation.h"
 #include "util.h"
 #include "coord.h"
 #include "shader.h"
 
+#define ENTITY_HEIGHT 1.632993f
 
-mat4x4 model, model_unit_trans, model_unit_rot;
+
+mat4x4 model, model_entity_trans, model_entity_rot;
 mat4x4 view;
 mat4x4 proj;
 mat4x4 camera;
@@ -38,27 +41,27 @@ GLuint tile_indices[] = {
 };
 
 
-GLfloat unit_vertices[] = {
+GLfloat entity_vertices[] = {
 	// Top
 	// South
-	0.0f, 2.0f, 0.0f, 0.5f, 2.0f / 6.0f,
+	0.0f, 2 * ENTITY_HEIGHT, 0.0f, 0.5f, 2.0f / 6.0f,
 	// East
-	0.0f, 2.0f, 1.0f, 1.0f, 1.0f / 6.0f,
+	0.0f, 2 * ENTITY_HEIGHT, 2.0f, 1.0f, 1.0f / 6.0f,
 	// West
-	1.0f, 2.0f, 0.0f, 0.0f, 1.0f / 6.0f,
+	2.0f, 2 * ENTITY_HEIGHT, 0.0f, 0.0f, 1.0f / 6.0f,
 	// North
-	1.0f, 2.0f, 1.0f, 0.5f, 0.0f,
+	2.0f, 2 * ENTITY_HEIGHT, 2.0f, 0.5f, 0.0f,
 
 	// Bottom
 	// South
 	0.0f, 0.0f, 0.0f, 0.5f, 1.0f,
 	// East
-	0.0f, 0.0f, 1.0f, 1.0f, 5.0f / 6.0f,
+	0.0f, 0.0f, 2.0f, 1.0f, 5.0f / 6.0f,
 	// West
-	1.0f, 0.0f, 0.0f, 0.0f, 5.0f / 6.0f,
+	2.0f, 0.0f, 0.0f, 0.0f, 5.0f / 6.0f,
 };
 
-GLuint unit_indices[] = {
+GLuint entity_indices[] = {
 	// top face
 	0, 2, 3,
 	3, 1, 0,
@@ -232,16 +235,16 @@ void renderer_init(GLFWwindow* win, struct map* map) {
 	renderer_update_projection();
 	renderer_check_gl_error("update proj");
 
-	mat4x4_identity(model_unit_trans);
-	mat4x4_identity(model_unit_rot);
+	mat4x4_identity(model_entity_trans);
+	mat4x4_identity(model_entity_rot);
 
-	glGenVertexArrays(1, &vao_unit);
-	glGenBuffers(1, &vbo_unit);
-	glGenBuffers(1, &ibo_unit);
+	glGenVertexArrays(1, &vao_entity);
+	glGenBuffers(1, &vbo_entity);
+	glGenBuffers(1, &ibo_entity);
 
-	glBindVertexArray(vao_unit);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo_unit);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_unit);
+	glBindVertexArray(vao_entity);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_entity);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_entity);
 	glUseProgram(shader);
 
 	glEnableVertexAttribArray(shader_attrib_pos);
@@ -252,8 +255,8 @@ void renderer_init(GLFWwindow* win, struct map* map) {
 	glVertexAttribPointer(shader_attrib_tex, 2, GL_FLOAT, GL_FALSE, 5*sizeof(GL_FLOAT),
 			(GLvoid*)(3 * sizeof(GLfloat)));
 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(unit_vertices), unit_vertices, GL_DYNAMIC_DRAW);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unit_indices), unit_indices, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(entity_vertices), entity_vertices, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(entity_indices), entity_indices, GL_DYNAMIC_DRAW);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -267,22 +270,54 @@ void renderer_update_map(struct map* map) {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void renderer_draw_unit(struct unit* unit) {
-	mat4x4 model_unit;
-	glBindVertexArray(vao_unit);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo_unit);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_unit);
-	glBindTexture(GL_TEXTURE_2D, unit->tex->id);
+	/* 0.0f, 2 * ENTITY_HEIGHT, 0.0f, 0.5f, 2.0f / 6.0f, */
+	/* // East */
+	/* 0.0f, 2 * ENTITY_HEIGHT, 2.0f, 1.0f, 1.0f / 6.0f, */
+	/* // West */
+	/* 2.0f, 2 * ENTITY_HEIGHT, 0.0f, 0.0f, 1.0f / 6.0f, */
+	/* // North */
+	/* 2.0f, 2 * ENTITY_HEIGHT, 2.0f, 0.5f, 0.0f, */
 
-	mat4x4_translate(model_unit_trans, unit->pos.nw, unit->pos.up, unit->pos.ne);
-	mat4x4_rotate_Y(model_unit_rot, model_unit_rot, 0.00f);
-	mat4x4_mul(model_unit, model_unit_trans, model_unit_rot);
-	glUniformMatrix4fv(shader_mat_model, 1, GL_FALSE, model_unit[0]);
+	/* // Bottom */
+	/* // South */
+	/* 0.0f, 0.0f, 0.0f, 0.5f, 1.0f, */
+	/* // East */
+	/* 0.0f, 0.0f, 2.0f, 1.0f, 5.0f / 6.0f, */
+	/* // West */
+	/* 2.0f, 0.0f, 0.0f, 0.0f, 5.0f / 6.0f, */
 
-	renderer_check_gl_error("unit model uniform");
+void renderer_draw_animation(struct animation* anim, float tdiff) {
+	animation_update(anim, tdiff);
+	entity_vertices[3] = 0.5f / ((float)anim->frames) + ((float)anim->current_frame) / ((float)anim->frames);
+	entity_vertices[3 + 5] = 1.0f / ((float)anim->frames) + ((float)anim->current_frame) / ((float)anim->frames);
+	entity_vertices[3 + 5 * 2] = 0.0f / ((float)anim->frames) + ((float)anim->current_frame) / ((float)anim->frames);
+	entity_vertices[3 + 5 * 3] = 0.5f / ((float)anim->frames) + ((float)anim->current_frame) / ((float)anim->frames);
+	entity_vertices[3 + 5 * 4] = 0.5f / ((float)anim->frames) + ((float)anim->current_frame) / ((float)anim->frames);
+	entity_vertices[3 + 5 * 5] = 1.0f / ((float)anim->frames) + ((float)anim->current_frame) / ((float)anim->frames);
+	entity_vertices[3 + 5 * 6] = 0.0f / ((float)anim->frames) + ((float)anim->current_frame) / ((float)anim->frames);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(entity_vertices), entity_vertices, GL_DYNAMIC_DRAW);
+}
+
+void renderer_draw_entity(struct entity* entity, float tdiff) {
+	mat4x4 model_entity;
+	glBindVertexArray(vao_entity);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_entity);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_entity);
+	if (entity->tex && !entity->anim) {
+		glBindTexture(GL_TEXTURE_2D, entity->tex->id);
+	} else if (entity->anim) {
+		renderer_draw_animation(entity->anim, tdiff);
+		glBindTexture(GL_TEXTURE_2D, entity->anim->tex->id);
+	}
+
+	mat4x4_translate(model_entity_trans, entity->phys->pos.nw, entity->phys->pos.up, entity->phys->pos.ne);
+	mat4x4_rotate_Y(model_entity_rot, model_entity_rot, 0.00f);
+	mat4x4_mul(model_entity, model_entity_trans, model_entity_rot);
+	glUniformMatrix4fv(shader_mat_model, 1, GL_FALSE, model_entity[0]);
+	renderer_check_gl_error("entity model uniform");
 
 	glDrawElements(GL_TRIANGLES, 18, GL_UNSIGNED_INT, 0);
-	renderer_check_gl_error("unit draw");
+	renderer_check_gl_error("entity draw");
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -304,7 +339,7 @@ void renderer_camera_update() {
 
 double ang = 0.0f;
 
-void renderer_render(float tdiff, struct map* map, struct unit* test_unit) {
+void renderer_render(float tdiff, struct map* map, struct entity* test_entity) {
 	struct coord_tile mpos_tile;
 	struct coord_camera mpos_cam;
 	struct coord_window mpos_win;
@@ -321,8 +356,8 @@ void renderer_render(float tdiff, struct map* map, struct unit* test_unit) {
 	renderer_camera_update();
 	renderer_draw_map(map);
 
-	if (test_unit)
-		renderer_draw_unit(test_unit);
+	if (test_entity)
+		renderer_draw_entity(test_entity, tdiff);
 
 	char cstr[64], mstr_w[64], mstr_c[64], mstr_t[64], mstr_r[64], fpsstr[64];
 	sprintf(fpsstr, "FPS: %0.3f", 1000.0f  / tdiff);

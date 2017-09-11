@@ -11,7 +11,7 @@
 #include "coord.h"
 #include "map.h"
 #include "texture.h"
-#include "unit.h"
+#include "entity.h"
 
 #define RTISO_2_PI 2 * acos(-1.0)
 #define RTISO_PI acos(-1.0)
@@ -32,7 +32,7 @@ extern GLfloat tile_world_size;
 extern GLfloat tile_vdata[];
 extern GLuint tile_vindices[];
 
-GLuint vao_tiles, vbo_tiles, ibo_tiles, vao_unit, vbo_unit, ibo_unit;
+GLuint vao_tiles, vbo_tiles, ibo_tiles, vao_entity, vbo_entity, ibo_entity;
 GLuint shader;
 GLint shader_attrib_pos, shader_attrib_tex, shader_attrib_tile_pos, shader_attrib_tile_type, shader_attrib_tile_subtype;
 GLuint shader_mat_model, shader_mat_view, shader_mat_proj, shader_mat_camera;
@@ -56,7 +56,7 @@ void renderer_init(GLFWwindow* window, struct map* map);
 
 void renderer_draw_map(struct map* map);
 
-void renderer_render(float tdiff, struct map* map, struct unit* test_unit);
+void renderer_render(float tdiff, struct map* map, struct entity* test_entity);
 
 void renderer_camera_move(float x, float y);
 
@@ -64,7 +64,9 @@ void renderer_camera_update();
 
 void renderer_update_projection();
 
-void renderer_draw_unit(struct unit* unit);
+void renderer_draw_animation(struct animation* anim, float tdiff);
+
+void renderer_draw_entity(struct entity* entity, float tdiff);
 
 void renderer_draw_text(const char *text, float x, float y);
 

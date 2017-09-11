@@ -3,16 +3,19 @@
  * author: jfeo (jens@feodor.dk)
  * date: 17/08/2016
  */
+#include "renderer.h"
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <math.h>
 
-#include "renderer.h"
+#include "animation.h"
 #include "util.h"
 #include "map.h"
+#include "unit.h"
+#include "phys.h"
 
 struct map map;
 int key_down[256];
@@ -97,8 +100,6 @@ int main(int argc, char *argv[]) {
 	glewExperimental = GL_TRUE;
 	glewInit();
 
-	srandom(time(NULL));
-
 	for (int i = 0; i < 256; i++) {
 		key_down[i] = 0;
 	}
@@ -113,27 +114,42 @@ int main(int argc, char *argv[]) {
 
 	struct texture texture_unit = texture_create("assets/tex/units.png");
 	struct coord_real upos = { .nw = 1.0f, .up = 0.0f, .ne = 1.0f };
-	test_unit = unit_create(&texture_unit, upos);
+	test_unit = unit_create(&texture_unit, phys_radial_create(upos));
+	test_unit->entity->anim = animation_create(&texture_unit, 8, 30.0f, 32);
 	test_unit->action = (struct action*)malloc(sizeof(struct action));
 	test_unit->action->type = MOVE;
 	test_unit->action->data.move.to = to;
 
-	struct timespec ts_before, ts_after;
+	struct timeval tv_before;
+	struct timeval tv_after;
+	struct coord_real move_diff;
+	float move_dist;
 	double ms = 0.0f;
 	while(!glfwWindowShouldClose(window)) {
-		clock_gettime(CLOCK_REALTIME, &ts_before);
-		renderer_render(ms, &map, test_unit);
+		gettimeofday(&tv_before, NULL);
+		renderer_render(ms, &map, test_unit->entity);
 		if (test_unit->action->type == MOVE) {
-			float ratio = 1.0f / sqrt(powf(test_unit->action->data.move.to.ne - test_unit->pos.ne, 2.0f) + \
-				 	          powf(test_unit->action->data.move.to.nw - test_unit->pos.nw, 2.0f));
-			test_unit->pos.ne += ratio * (test_unit->action->data.move.to.ne - test_unit->pos.ne) * ms / 10.0f;
-			test_unit->pos.nw += ratio * (test_unit->action->data.move.to.nw - test_unit->pos.nw) * ms / 10.0f;
+			move_diff.ne = test_unit->action->data.move.to.ne - test_unit->entity->phys->pos.ne;
+			move_diff.nw = test_unit->action->data.move.to.nw - test_unit->entity->phys->pos.nw;
+			move_dist = 1.0f / sqrt(powf(move_diff.ne, 2.0f) + \
+			                        powf(move_diff.nw, 2.0f));
+			if (pow(move_diff.ne, 2.0f) < pow(move_dist, 2.0f)) {
+				test_unit->entity->phys->pos.ne = test_unit->action->data.move.to.ne;
+			} else {
+				test_unit->entity->phys->pos.ne += move_dist * move_diff.ne * ms / 10.0f;
+			}
+			if (pow(move_diff.nw, 2.0f) < pow(move_dist, 2.0f)) {
+				test_unit->entity->phys->pos.nw = test_unit->action->data.move.to.nw;
+			}
+			else {
+				test_unit->entity->phys->pos.nw += move_dist * move_diff.nw * ms / 10.0f;
+			}
 		}
 		glfwPollEvents();
 		handle_down_keys();
-		clock_gettime(CLOCK_REALTIME, &ts_after);
-		ms = (ts_after.tv_sec - ts_before.tv_sec) * 1000.0f
-		   + (ts_after.tv_nsec - ts_before.tv_nsec) / 1000000.0f;
+		gettimeofday(&tv_after, NULL);
+		ms = (tv_after.tv_sec - tv_before.tv_sec) * 1000.0f
+		   + (tv_after.tv_usec - tv_before.tv_usec) / 1000.0f;
 	}
 
 	renderer_deinit();

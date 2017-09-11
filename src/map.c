@@ -15,7 +15,7 @@ struct map map_init(unsigned int width, unsigned int height) {
 		for (nw = 0; nw < map.size.nw; nw++) {
 			i = ne * map.size.nw + nw;
 			/* map.tiles[i].type = ne % 2 + nw % 2; */
-			map.tiles[i].subtype = random() % 4;
+			map.tiles[i].subtype = rand() % 4;
 			map.tiles[i].pos = (struct coord_tile) { .ne = ne, .nw = nw };
 		}
 	}
