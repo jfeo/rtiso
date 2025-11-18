@@ -1,8 +1,10 @@
+#include "renderer.h"
+
 #include <stdio.h>
 
 #include "animation.h"
 #include "coord.h"
-#include "renderer.h"
+#include "linmath.h"
 #include "shader.h"
 
 #define ENTITY_HEIGHT 1.632993f
@@ -55,50 +57,21 @@ GLuint tile_indices[] = {0, 2, 3, 0, 3, 1};
 GLfloat entity_vertices[] = {
     // Top
     // South
-    0.0f,
-    2 * ENTITY_HEIGHT,
-    0.0f,
-    0.5f,
-    2.0f / 6.0f,
+    0.0f, 2 * ENTITY_HEIGHT, 0.0f, 0.5f, 2.0f / 6.0f,
     // East
-    0.0f,
-    2 * ENTITY_HEIGHT,
-    2.0f,
-    1.0f,
-    1.0f / 6.0f,
+    0.0f, 2 * ENTITY_HEIGHT, 2.0f, 1.0f, 1.0f / 6.0f,
     // West
-    2.0f,
-    2 * ENTITY_HEIGHT,
-    0.0f,
-    0.0f,
-    1.0f / 6.0f,
+    2.0f, 2 * ENTITY_HEIGHT, 0.0f, 0.0f, 1.0f / 6.0f,
     // North
-    2.0f,
-    2 * ENTITY_HEIGHT,
-    2.0f,
-    0.5f,
-    0.0f,
+    2.0f, 2 * ENTITY_HEIGHT, 2.0f, 0.5f, 0.0f,
 
     // Bottom
     // South
-    0.0f,
-    0.0f,
-    0.0f,
-    0.5f,
-    1.0f,
+    0.0f, 0.0f, 0.0f, 0.5f, 1.0f,
     // East
-    0.0f,
-    0.0f,
-    2.0f,
-    1.0f,
-    5.0f / 6.0f,
+    0.0f, 0.0f, 2.0f, 1.0f, 5.0f / 6.0f,
     // West
-    2.0f,
-    0.0f,
-    0.0f,
-    0.0f,
-    5.0f / 6.0f,
-};
+    2.0f, 0.0f, 0.0f, 0.0f, 5.0f / 6.0f};
 
 GLuint entity_indices[] = {
     // top face
@@ -113,6 +86,7 @@ GLuint entity_indices[] = {
 struct coord_window window_size = {.x = 800.0f, .y = 600.0f};
 struct coord_camera ortho_size;
 struct coord_camera camera_pos = {.x = 0.0f, .y = 0.0f};
+float camera_zoom = 2.0;
 struct coord_window tile_pixel_size = {.x = 16.0f, .y = 8.0f};
 struct coord_window mouse_pos = {.x = 0.0f, .y = 0.0f};
 
@@ -122,6 +96,26 @@ GLint renderer_check_gl_error(const char *msg) {
     printf("Error '%s': %d\n", msg, err);
   }
   return err;
+}
+
+struct entities renderer_entities_create() {
+  struct entities entities;
+  unsigned int size = sizeof(struct entity *) * 10;
+  entities.entities = malloc(size);
+  entities.count = 0;
+  entities._allocated = size;
+
+  return entities;
+}
+
+void renderer_entities_add(struct entities *entities, struct entity *entity) {
+  if (entities->count == entities->_allocated) {
+    entities->_allocated *= 2;
+    entities->entities = realloc(entities->entities, entities->_allocated);
+  }
+
+  entities->entities[entities->count] = entity;
+  entities->count++;
 }
 
 void renderer_init(GLFWwindow *win, struct map *map) {
@@ -199,9 +193,9 @@ void renderer_init(GLFWwindow *win, struct map *map) {
   renderer_check_gl_error("glEnableVertexAttribArray");
 
   glVertexAttribPointer(shader_attrib_pos, 3, GL_FLOAT, GL_FALSE,
-                        5 * sizeof(GL_FLOAT), 0);
+                        5 * sizeof(GLfloat), 0);
   glVertexAttribPointer(shader_attrib_tex, 2, GL_FLOAT, GL_FALSE,
-                        5 * sizeof(GL_FLOAT), (GLvoid *)(3 * sizeof(GLfloat)));
+                        5 * sizeof(GLfloat), (GLvoid *)(3 * sizeof(GLfloat)));
   renderer_check_gl_error("glVertexAttribPointer: Vertex");
 
   glGenBuffers(1, &vbo_tiles);
@@ -294,9 +288,9 @@ void renderer_init(GLFWwindow *win, struct map *map) {
   renderer_check_gl_error("glEnableVertexAttribArray");
 
   glVertexAttribPointer(shader_attrib_pos, 3, GL_FLOAT, GL_FALSE,
-                        5 * sizeof(GL_FLOAT), 0);
+                        5 * sizeof(GLfloat), 0);
   glVertexAttribPointer(shader_attrib_tex, 2, GL_FLOAT, GL_FALSE,
-                        5 * sizeof(GL_FLOAT), (GLvoid *)(3 * sizeof(GLfloat)));
+                        5 * sizeof(GLfloat), (GLvoid *)(3 * sizeof(GLfloat)));
 
   glBufferData(GL_ARRAY_BUFFER, sizeof(entity_vertices), entity_vertices,
                GL_DYNAMIC_DRAW);
@@ -386,9 +380,21 @@ void renderer_draw_entity(struct entity *entity, float tdiff) {
   glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+void renderer_draw_entities(struct entities *entities, float tdiff) {
+  for (int i = 0; i < entities->count; i++) {
+    struct entity *entity = entities->entities[i];
+    renderer_draw_entity(entity, tdiff);
+  }
+}
+
 void renderer_camera_move(float x, float y) {
   camera_pos.x += x;
   camera_pos.y += y;
+}
+
+void renderer_camera_zoom(float s) {
+  camera_zoom += s;
+  renderer_update_projection();
 }
 
 void renderer_camera_update() {
@@ -400,7 +406,7 @@ void renderer_camera_update() {
 
 double ang = 0.0f;
 
-void renderer_render(float tdiff, struct map *map, struct entity *test_entity) {
+void renderer_render(float tdiff, struct map *map, struct entities *entities) {
   struct coord_tile mpos_tile;
   struct coord_camera mpos_cam;
   struct coord_window mpos_win;
@@ -416,9 +422,7 @@ void renderer_render(float tdiff, struct map *map, struct entity *test_entity) {
 
   renderer_camera_update();
   renderer_draw_map(map);
-
-  if (test_entity)
-    renderer_draw_entity(test_entity, tdiff);
+  renderer_draw_entities(entities, tdiff);
 
   char cstr[64], mstr_w[64], mstr_c[64], mstr_t[64], mstr_r[64], fpsstr[64];
   sprintf(fpsstr, "FPS: %0.3f", 1000.0f / tdiff);
@@ -426,7 +430,8 @@ void renderer_render(float tdiff, struct map *map, struct entity *test_entity) {
   sprintf(mstr_c, "Mouse (camera): %0.2f %0.2f", mpos_cam.x, mpos_cam.y);
   sprintf(mstr_t, "Mouse (tile): %d %d", mpos_tile.nw, mpos_tile.ne);
   sprintf(mstr_r, "Mouse (real): %0.2f %0.2f", mpos_real.nw, mpos_real.ne);
-  sprintf(cstr, "Camera: %0.0f %0.0f", camera_pos.x, camera_pos.y);
+  sprintf(cstr, "Camera: %0.0f %0.0f (%0.2f)", camera_pos.x, camera_pos.y,
+          camera_zoom);
   renderer_draw_text(fpsstr, 5.0f, window_size.y - 19.0f);
   renderer_draw_text(mstr_w, 5.0f, 24.0f);
   renderer_draw_text(mstr_c, 5.0f, 43.0f);
@@ -487,8 +492,8 @@ void renderer_draw_text(const char *text, float x, float y) {
     glBufferData(GL_ARRAY_BUFFER, sizeof(box), box, GL_DYNAMIC_DRAW);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-    x += (g->advance.x / 64) * sx;
-    y += (g->advance.y / 64) * sy;
+    x += (g->advance.x / 64.0) * sx;
+    y += (g->advance.y / 64.0) * sy;
   }
   glBindVertexArray(0);
 }
@@ -503,8 +508,9 @@ void renderer_update_projection() {
   float screen_tiles = window_size.x / tile_pixel_size.x;
   ortho_size.x = screen_tiles * SQRT_2;
   ortho_size.y = ortho_size.x * aspect;
-  mat4x4_ortho(proj, -ortho_size.x / 2, ortho_size.x / 2, -ortho_size.y / 2,
-               ortho_size.y / 2, 0.0f, 1000.0f);
+  mat4x4_ortho(proj, -ortho_size.x / camera_zoom, ortho_size.x / camera_zoom,
+               -ortho_size.y / camera_zoom, ortho_size.y / camera_zoom, 0.0f,
+               1000.0f);
   glUniformMatrix4fv(shader_mat_proj, 1, GL_FALSE, (GLfloat *)proj);
 
   glUseProgram(shader_text);

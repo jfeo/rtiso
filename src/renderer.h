@@ -32,13 +32,25 @@ extern GLfloat tile_world_size;
 extern GLfloat tile_vdata[];
 extern GLuint tile_vindices[];
 
+struct entities {
+  struct entity **entities;
+  unsigned int count;
+  unsigned int _allocated;
+};
+
+struct entities renderer_entities_create();
+
+void renderer_entities_add(struct entities *entities, struct entity *entity);
+
 void renderer_init(GLFWwindow *window, struct map *map);
 
 void renderer_draw_map(struct map *map);
 
-void renderer_render(float tdiff, struct map *map, struct entity *test_entity);
+void renderer_render(float tdiff, struct map *map, struct entities *entities);
 
 void renderer_camera_move(float x, float y);
+
+void renderer_camera_zoom(float s);
 
 void renderer_camera_update();
 
