@@ -168,9 +168,9 @@ int main(int argc, char *argv[]) {
   struct coord_real move_diff;
   double ms = 0.0f;
 
-  struct entities entities = renderer_entities_create();
-  renderer_entities_add(&entities, moving_unit->entity);
-  renderer_entities_add(&entities, static_unit->entity);
+  array_entity entities = array_entity_init();
+  array_entity_add(&entities, moving_unit->entity);
+  array_entity_add(&entities, static_unit->entity);
 
   while (!glfwWindowShouldClose(window)) {
     gettimeofday(&tv_before, NULL);

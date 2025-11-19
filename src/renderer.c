@@ -3,9 +3,12 @@
 #include <stdio.h>
 
 #include "animation.h"
+#include "array.h"
 #include "coord.h"
 #include "linmath.h"
 #include "shader.h"
+
+ARRAY_DEFINE(struct entity *, entity)
 
 #define ENTITY_HEIGHT 1.632993f
 
@@ -96,26 +99,6 @@ GLint renderer_check_gl_error(const char *msg) {
     printf("Error '%s': %d\n", msg, err);
   }
   return err;
-}
-
-struct entities renderer_entities_create() {
-  struct entities entities;
-  unsigned int size = sizeof(struct entity *) * 10;
-  entities.entities = malloc(size);
-  entities.count = 0;
-  entities._allocated = size;
-
-  return entities;
-}
-
-void renderer_entities_add(struct entities *entities, struct entity *entity) {
-  if (entities->count == entities->_allocated) {
-    entities->_allocated *= 2;
-    entities->entities = realloc(entities->entities, entities->_allocated);
-  }
-
-  entities->entities[entities->count] = entity;
-  entities->count++;
 }
 
 void renderer_init(GLFWwindow *win, struct map *map) {
@@ -380,9 +363,9 @@ void renderer_draw_entity(struct entity *entity, float tdiff) {
   glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void renderer_draw_entities(struct entities *entities, float tdiff) {
+void renderer_draw_entities(array_entity *entities, float tdiff) {
   for (int i = 0; i < entities->count; i++) {
-    struct entity *entity = entities->entities[i];
+    struct entity *entity = entities->elems[i];
     renderer_draw_entity(entity, tdiff);
   }
 }
@@ -406,7 +389,7 @@ void renderer_camera_update() {
 
 double ang = 0.0f;
 
-void renderer_render(float tdiff, struct map *map, struct entities *entities) {
+void renderer_render(float tdiff, struct map *map, array_entity *entities) {
   struct coord_tile mpos_tile;
   struct coord_camera mpos_cam;
   struct coord_window mpos_win;
