@@ -38,3 +38,6 @@ bin
 
 # ctags
 tags
+
+# direnv
+.direnv
