@@ -4,7 +4,7 @@
 #include "phys.h"
 
 struct projectile {
-	struct phys_radial phys;
+  struct phys_radial phys;
 };
 
 struct projectile projectile_create();

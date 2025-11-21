@@ -7,7 +7,7 @@
 
 int sprite_space;
 int sprite_count;
-GLfloat* sprite_vdata = NULL;
+GLfloat *sprite_vdata = NULL;
 
 void sprite_init() {
   // variable definition
@@ -24,19 +24,23 @@ void sprite_init() {
   sprite_vdata_alloc();
 
   // allocate space for sprite vertex data
-  sprite_vdata = (GLfloat*)malloc(5 * sprite_space * sizeof(GLfloat));
+  sprite_vdata = (GLfloat *)malloc(5 * sprite_space * sizeof(GLfloat));
 
   // create sprite shader
-  GLuint vshader = shader_create_from_file(GL_VERTEX_SHADER, "res/shaders/sprite.vert.glsl");
-  GLuint fshader = shader_create_from_file(GL_FRAGMENT_SHADER, "res/shaders/sprite.frag.glsl");
+  GLuint vshader =
+      shader_create_from_file(GL_VERTEX_SHADER, "res/shaders/sprite.vert.glsl");
+  GLuint fshader = shader_create_from_file(GL_FRAGMENT_SHADER,
+                                           "res/shaders/sprite.frag.glsl");
   sprite_shader = shader_program(vshader, fshader);
   glUseProgram(sprite_shader);
   sprite_shader_attrib_pos = glGetAttribLocation(sprite_shader, "position");
   glEnableVertexAttribArray(sprite_shader_attrib_pos);
-  glVertexAttribPointer(sprite_shader_attrib_pos, 2, GL_FLOAT, GL_FALSE, 5*sizeof(GL_FLOAT), 0);
+  glVertexAttribPointer(sprite_shader_attrib_pos, 2, GL_FLOAT, GL_FALSE,
+                        5 * sizeof(GL_FLOAT), 0);
   sprite_shader_attrib_col = glGetAttribLocation(sprite_shader, "color");
   glEnableVertexAttribArray(sprite_shader_attrib_col);
-  glVertexAttribPointer(sprite_shader_attrib_col, 3, GL_FLOAT, GL_FALSE, 5*sizeof(GL_FLOAT), (GLvoid*)(2 * sizeof(GLfloat)));
+  glVertexAttribPointer(sprite_shader_attrib_col, 3, GL_FLOAT, GL_FALSE,
+                        5 * sizeof(GL_FLOAT), (GLvoid *)(2 * sizeof(GLfloat)));
 
   mat4x4_ortho(sprite_proj, 0.0f, 800.0f, 0.0f, 600.0f, 0.0f, 1.0f);
   mat4x4_translate(sprite_view, 0.9f, 0.0f, 0.0f);
@@ -44,19 +48,22 @@ void sprite_init() {
   sprite_shader_uniform_proj = glGetUniformLocation(sprite_shader, "proj");
   sprite_shader_uniform_view = glGetUniformLocation(sprite_shader, "view");
   sprite_shader_uniform_model = glGetUniformLocation(sprite_shader, "model");
-  glUniformMatrix4fv(sprite_shader_uniform_proj, 1, GL_FALSE, &sprite_proj[0][0]);
-  glUniformMatrix4fv(sprite_shader_uniform_view, 1, GL_FALSE, &sprite_view[0][0]);
+  glUniformMatrix4fv(sprite_shader_uniform_proj, 1, GL_FALSE,
+                     &sprite_proj[0][0]);
+  glUniformMatrix4fv(sprite_shader_uniform_view, 1, GL_FALSE,
+                     &sprite_view[0][0]);
 }
-
 
 void sprite_vdata_alloc() {
   sprite_space += sprite_space_increment;
-  sprite_vdata = (GLfloat*)realloc(sprite_vdata, 6 * 5 * sprite_space * sizeof(GLfloat));
-  glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 5 * 6 * sprite_space, sprite_vdata, GL_DYNAMIC_DRAW);
+  sprite_vdata =
+      (GLfloat *)realloc(sprite_vdata, 6 * 5 * sprite_space * sizeof(GLfloat));
+  glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 5 * 6 * sprite_space,
+               sprite_vdata, GL_DYNAMIC_DRAW);
 }
 
-sprite_t* sprite_create(GLfloat x, GLfloat y, GLfloat w, GLfloat h) {
-  sprite_t* sprite = (sprite_t*)malloc(sizeof(sprite_t));
+sprite_t *sprite_create(GLfloat x, GLfloat y, GLfloat w, GLfloat h) {
+  sprite_t *sprite = (sprite_t *)malloc(sizeof(sprite_t));
   sprite->x = x;
   sprite->y = y;
   sprite->w = w;
@@ -106,16 +113,17 @@ sprite_t* sprite_create(GLfloat x, GLfloat y, GLfloat w, GLfloat h) {
   sprite_vdata[sprite->vbo_offset + 29] = 1.0f;
 
   glBufferSubData(GL_ARRAY_BUFFER, sprite->vbo_offset * sizeof(GLfloat),
-      sizeof(GLfloat) * 5 * 6, &sprite_vdata[sprite->vbo_offset]);
+                  sizeof(GLfloat) * 5 * 6, &sprite_vdata[sprite->vbo_offset]);
 
   return sprite;
 }
 
-void sprite_draw(sprite_t* sprite) {
+void sprite_draw(sprite_t *sprite) {
   glBindVertexArray(sprite_vao);
-  glBufferSubData(GL_ARRAY_BUFFER, sizeof(GLfloat) * sprite->vbo_offset,  sizeof(GLfloat) * 5 * 6,
-      &sprite_vdata[sprite->vbo_offset]);
+  glBufferSubData(GL_ARRAY_BUFFER, sizeof(GLfloat) * sprite->vbo_offset,
+                  sizeof(GLfloat) * 5 * 6, &sprite_vdata[sprite->vbo_offset]);
   glDrawArrays(GL_TRIANGLES, sprite->count * 6, 6);
   glBindVertexArray(0);
-  glUniformMatrix4fv(sprite_shader_uniform_model, 1, GL_FALSE, &(sprite->model[0][0]));
+  glUniformMatrix4fv(sprite_shader_uniform_model, 1, GL_FALSE,
+                     &(sprite->model[0][0]));
 }

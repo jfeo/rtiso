@@ -4,8 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void shader_compile_debug(GLint shader)
-{
+void shader_compile_debug(GLint shader) {
   int msg_len = 0;
 
   glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &msg_len);
@@ -34,7 +33,7 @@ void shader_link_debug(GLint program) {
   }
 }
 
-GLuint shader_create(GLenum type, const GLchar* src) {
+GLuint shader_create(GLenum type, const GLchar *src) {
   GLint status;
 
   GLuint shader = glCreateShader(type);
@@ -42,8 +41,7 @@ GLuint shader_create(GLenum type, const GLchar* src) {
   glCompileShader(shader);
 
   glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-  if (status == 0)
-  {
+  if (status == 0) {
     printf("Error: Shader not compiled\n");
     shader_compile_debug(shader);
     return -1;
@@ -52,8 +50,8 @@ GLuint shader_create(GLenum type, const GLchar* src) {
   return shader;
 }
 
-GLuint shader_create_from_file(GLenum type, const GLchar* file) {
-  GLchar* src = util_read_file(file);
+GLuint shader_create_from_file(GLenum type, const GLchar *file) {
+  GLchar *src = util_read_file(file);
   GLuint shader = shader_create(type, src);
   return shader;
 }
@@ -70,7 +68,7 @@ GLuint shader_program(GLuint vshader, GLuint fshader) {
   glDeleteShader(fshader);
 
   glGetProgramiv(program, GL_LINK_STATUS, &status);
-  if(status == 0) {
+  if (status == 0) {
     printf("Error: Shader not linked\n");
     shader_link_debug(program);
     return -1;
@@ -79,6 +77,4 @@ GLuint shader_program(GLuint vshader, GLuint fshader) {
   return program;
 }
 
-void shader_use_program(GLuint program) {
-  glUseProgram(program);
-}
+void shader_use_program(GLuint program) { glUseProgram(program); }
