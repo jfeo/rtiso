@@ -5,12 +5,20 @@
 #include "animation.h"
 #include "array.h"
 #include "coord.h"
+#include "interaction.h"
 #include "linmath.h"
 #include "shader.h"
 
 ARRAY_DEFINE(struct entity *, entity)
 
 #define ENTITY_HEIGHT 1.632993f
+
+float camera_zoom = 2.0;
+struct coord_window window_size = {.x = 800.0f, .y = 600.0f};
+struct coord_camera ortho_size;
+struct coord_camera camera_pos = {.x = 0.0f, .y = 0.0f};
+struct coord_window tile_pixel_size = {.x = 16.0f, .y = 8.0f};
+struct coord_window mouse_pos = {.x = 0.0f, .y = 0.0f};
 
 GLuint vao_tiles, vbo_tiles, ibo_tiles, vao_entity, vbo_entity, ibo_entity;
 GLuint shader;
@@ -86,13 +94,6 @@ GLuint entity_indices[] = {
     // left face
     5, 1, 0, 0, 4, 5};
 
-struct coord_window window_size = {.x = 800.0f, .y = 600.0f};
-struct coord_camera ortho_size;
-struct coord_camera camera_pos = {.x = 0.0f, .y = 0.0f};
-float camera_zoom = 2.0;
-struct coord_window tile_pixel_size = {.x = 16.0f, .y = 8.0f};
-struct coord_window mouse_pos = {.x = 0.0f, .y = 0.0f};
-
 GLint renderer_check_gl_error(const char *msg) {
   GLint err = glGetError();
   if (err != 0) {
@@ -101,8 +102,22 @@ GLint renderer_check_gl_error(const char *msg) {
   return err;
 }
 
+void renderer_window_size_callback(int width, int height) {
+  window_size.x = width;
+  window_size.y = height;
+  glViewport(0, 0, width, height);
+  renderer_update_projection();
+}
+
 void renderer_init(GLFWwindow *win, struct map *map) {
   window = win;
+
+  array_wscbs_add(&interaction.window_size_callbacks,
+                  &renderer_window_size_callback);
+
+  // initialize glew
+  glewExperimental = GL_TRUE;
+  glewInit();
 
   if (FT_Init_FreeType(&ft)) {
     printf("Could not init freetype library\n");

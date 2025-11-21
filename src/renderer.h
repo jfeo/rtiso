@@ -18,11 +18,6 @@
 #define RTISO_PI acos(-1.0)
 #define SQRT_2 1.414213562373095048801688724209698078569671875376948073176f
 
-/**
- * Check GL for error
- */
-GLint renderer_check_gl_error(const char *msg);
-
 extern struct coord_window window_size;
 extern struct coord_camera ortho_size;
 extern struct coord_camera camera_pos;
@@ -36,6 +31,8 @@ extern GLuint tile_vindices[];
 ARRAY_DECLARE(struct entity *, entity)
 
 void renderer_init(GLFWwindow *window, struct map *map);
+
+GLint renderer_check_gl_error(const char *msg);
 
 void renderer_draw_map(struct map *map);
 
@@ -57,9 +54,6 @@ void renderer_draw_text(const char *text, float x, float y);
 
 void renderer_update_map(struct map *map);
 
-/**
- * Terminate GLFW.
- */
 void renderer_deinit();
 
 void printm(mat4x4 m);
