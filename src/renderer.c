@@ -1,17 +1,18 @@
-#include "renderer.h"
-
 #include <stdio.h>
 
-#include "animation.h"
+#include "renderer.h"
+
 #include "array.h"
 #include "coord.h"
+#include "gl.h"
 #include "interaction.h"
 #include "linmath.h"
+#include "render_object.h"
 #include "shader.h"
+#include "text.h"
+#include "tilemap.h"
 
 ARRAY_DEFINE(struct entity *, entity)
-
-#define ENTITY_HEIGHT 1.632993f
 
 float camera_zoom = 2.0;
 struct coord_window window_size = {.x = 800.0f, .y = 600.0f};
@@ -20,25 +21,7 @@ struct coord_camera camera_pos = {.x = 0.0f, .y = 0.0f};
 struct coord_window tile_pixel_size = {.x = 16.0f, .y = 8.0f};
 struct coord_window mouse_pos = {.x = 0.0f, .y = 0.0f};
 
-GLuint vao_tiles, vbo_tiles, ibo_tiles, vao_entity, vbo_entity, ibo_entity;
-GLuint shader;
-GLint shader_attrib_pos, shader_attrib_tex, shader_attrib_tile_pos,
-    shader_attrib_tile_type, shader_attrib_tile_subtype;
-GLuint shader_mat_model, shader_mat_view, shader_mat_proj, shader_mat_camera;
-
-GLuint vao_text, vbo_text, tex_text;
-GLint shader_text;
-GLuint shader_text_attrib_pos, shader_text_attrib_tex, shader_text_color,
-    shader_text_mat_proj;
-FT_Library ft;
-FT_Face face;
-FT_GlyphSlot g;
-
-struct texture texture;
-
-/*
- * Initializes GLFW and GLEW and creates a GL context.
- */
+struct shader_program world_shader;
 
 GLFWwindow *window;
 
@@ -47,60 +30,9 @@ mat4x4 view;
 mat4x4 proj;
 mat4x4 camera;
 
-mat4x4 text_proj;
-
 vec3 pos = {0.0f, 0.0f, 0.0f};
 vec3 front = {0.0f, 0.0f, 1.0f};
 vec3 up = {0.0f, 1.0f, 0.0f};
-
-GLfloat tile_vertices[] = {
-    // South
-    0.0f, 0.0f, 0.0f, 0.5f / 4.0f, 1.0f / 4.0f,
-    // East
-    0.0f, 0.0f, 1.0f, 1.0f / 4.0f, 0.5f / 4.0f,
-    // West
-    1.0f, 0.0f, 0.0f, 0.0f, 0.5f / 4.0f,
-    // North
-    1.0f, 0.0f, 1.0f, 0.5f / 4.0f, 0.0f};
-
-GLuint tile_indices[] = {0, 2, 3, 0, 3, 1};
-
-GLfloat entity_vertices[] = {
-    // Top
-    // South
-    0.0f, 2 * ENTITY_HEIGHT, 0.0f, 0.5f, 2.0f / 6.0f,
-    // East
-    0.0f, 2 * ENTITY_HEIGHT, 2.0f, 1.0f, 1.0f / 6.0f,
-    // West
-    2.0f, 2 * ENTITY_HEIGHT, 0.0f, 0.0f, 1.0f / 6.0f,
-    // North
-    2.0f, 2 * ENTITY_HEIGHT, 2.0f, 0.5f, 0.0f,
-
-    // Bottom
-    // South
-    0.0f, 0.0f, 0.0f, 0.5f, 1.0f,
-    // East
-    0.0f, 0.0f, 2.0f, 1.0f, 5.0f / 6.0f,
-    // West
-    2.0f, 0.0f, 0.0f, 0.0f, 5.0f / 6.0f};
-
-GLuint entity_indices[] = {
-    // top face
-    0, 2, 3, 3, 1, 0,
-
-    // right face
-    6, 2, 0, 0, 4, 6,
-
-    // left face
-    5, 1, 0, 0, 4, 5};
-
-GLint renderer_check_gl_error(const char *msg) {
-  GLint err = glGetError();
-  if (err != 0) {
-    printf("Error '%s': %d\n", msg, err);
-  }
-  return err;
-}
 
 void renderer_window_size_callback(int width, int height) {
   window_size.x = width;
@@ -119,263 +51,95 @@ void renderer_init(GLFWwindow *win, struct map *map) {
   glewExperimental = GL_TRUE;
   glewInit();
 
-  if (FT_Init_FreeType(&ft)) {
-    printf("Could not init freetype library\n");
-    return;
-  }
-
-  if (FT_New_Face(ft, "assets/DejaVuSans.ttf", 0, &face)) {
-    printf("Could not open font\n");
-    return;
-  }
+  text_init();
 
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LEQUAL);
-
-  FT_Set_Pixel_Sizes(face, 0, 14);
-  g = face->glyph;
-
-  // vao, vbo_tiles, ibo_tiles, etc.
-  glGenVertexArrays(1, &vao_tiles);
-  glGenBuffers(1, &vbo_tiles);
-  glGenBuffers(1, &ibo_tiles);
-  glBindVertexArray(vao_tiles);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_tiles);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(tile_vertices), tile_vertices,
-               GL_STREAM_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_tiles);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(tile_indices), tile_indices,
-               GL_STREAM_DRAW);
-  texture = texture_create("assets/tex/tiles.png");
-  renderer_check_gl_error("Texture creation");
-  glBindTexture(GL_TEXTURE_2D, texture.id);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
   // set up matrices
   mat4x4_identity(camera);
   mat4x4_identity(model);
-
   mat4x4_look_at(view, pos, front, up);
   mat4x4_rotate_X(view, view, -RTISO_PI / 6);
   mat4x4_rotate_Y(view, view, RTISO_2_PI / 8);
 
-  // create shader
-  GLuint vshader = shader_create_from_file(GL_VERTEX_SHADER,
-                                           "assets/shaders/simple.vert.glsl");
-  GLuint fshader = shader_create_from_file(GL_FRAGMENT_SHADER,
-                                           "assets/shaders/simple.frag.glsl");
+  world_shader = shader_program_from_file("assets/shaders/simple.vert.glsl",
+                                          "assets/shaders/simple.frag.glsl",
+                                          "world-shader");
 
-  shader = shader_program(vshader, fshader);
-  renderer_check_gl_error("Create program");
-  glUseProgram(shader);
-  renderer_check_gl_error("Use program");
+  shader_program_add_attr(&world_shader,
+                          (struct shader_attr){.name = "position",
+                                               .size = 3,
+                                               .type = GL_FLOAT,
+                                               .normalized = GL_FALSE,
+                                               .stride = 5 * sizeof(GLfloat),
+                                               .pointer = 0});
+  shader_program_add_attr(
+      &world_shader,
+      (struct shader_attr){.name = "texcoord",
+                           .size = 2,
+                           .type = GL_FLOAT,
+                           .normalized = GL_FALSE,
+                           .stride = 5 * sizeof(GLfloat),
+                           .pointer = (GLvoid *)(3 * sizeof(GLfloat))});
 
-  // Setup uniforms
-  shader_attrib_pos = glGetAttribLocation(shader, "position");
-  shader_attrib_tex = glGetAttribLocation(shader, "texcoord");
-  shader_attrib_tile_pos = glGetAttribLocation(shader, "tile_pos");
-  shader_attrib_tile_type = glGetAttribLocation(shader, "tile_type");
-  shader_attrib_tile_subtype = glGetAttribLocation(shader, "tile_subtype");
-  shader_mat_model = glGetUniformLocation(shader, "model");
-  shader_mat_view = glGetUniformLocation(shader, "view");
-  shader_mat_proj = glGetUniformLocation(shader, "proj");
-  shader_mat_camera = glGetUniformLocation(shader, "camera");
-  renderer_check_gl_error("Get attribute locations");
+  shader_program_add_attr(&world_shader,
+                          (struct shader_attr){.name = "tile_pos",
+                                               .size = 3,
+                                               .type = GL_INT,
+                                               .stride = sizeof(struct tile),
+                                               .pointer = 0,
+                                               .divisor = 1});
 
-  glUniformMatrix4fv(shader_mat_view, 1, GL_FALSE, (GLfloat *)view);
-  glUniformMatrix4fv(shader_mat_model, 1, GL_FALSE, (GLfloat *)model);
-  glUniformMatrix4fv(shader_mat_camera, 1, GL_FALSE, (GLfloat *)camera);
-  renderer_check_gl_error("glUniform");
+  shader_program_add_attr(
+      &world_shader,
+      (struct shader_attr){.name = "tile_type",
+                           .size = 1,
+                           .type = GL_INT,
+                           .stride = sizeof(struct tile),
+                           .pointer = (GLvoid *)(sizeof(struct coord_tile)),
+                           .divisor = 1});
 
-  glEnableVertexAttribArray(shader_attrib_pos);
-  glEnableVertexAttribArray(shader_attrib_tex);
-  renderer_check_gl_error("glEnableVertexAttribArray");
+  shader_program_add_attr(
+      &world_shader,
+      (struct shader_attr){
+          .name = "tile_subtype",
+          .size = 1,
+          .type = GL_INT,
+          .stride = sizeof(struct tile),
+          .pointer = (GLvoid *)(sizeof(struct coord_tile) + sizeof(int)),
+          .divisor = 1});
 
-  glVertexAttribPointer(shader_attrib_pos, 3, GL_FLOAT, GL_FALSE,
-                        5 * sizeof(GLfloat), 0);
-  glVertexAttribPointer(shader_attrib_tex, 2, GL_FLOAT, GL_FALSE,
-                        5 * sizeof(GLfloat), (GLvoid *)(3 * sizeof(GLfloat)));
-  renderer_check_gl_error("glVertexAttribPointer: Vertex");
+  shader_program_use(&world_shader);
+  shader_program_add_uniform(&world_shader,
+                             (struct shader_uniform){.name = "model"});
+  shader_program_add_uniform(&world_shader,
+                             (struct shader_uniform){.name = "view"});
+  shader_program_add_uniform(&world_shader,
+                             (struct shader_uniform){.name = "proj"});
+  shader_program_add_uniform(&world_shader,
+                             (struct shader_uniform){.name = "camera"});
 
-  glGenBuffers(1, &vbo_tiles);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_tiles);
-  glBufferData(GL_ARRAY_BUFFER,
-               sizeof(struct tile) * map->size.nw * map->size.ne, map->tiles,
-               GL_STREAM_DRAW);
+  printf("sending world shader uniform data\n");
+  shader_program_uniform_mat4(&world_shader, "view", 1, GL_FALSE,
+                              (GLfloat *)view);
+  shader_program_uniform_mat4(&world_shader, "model", 1, GL_FALSE,
+                              (GLfloat *)model);
+  shader_program_uniform_mat4(&world_shader, "camera", 1, GL_FALSE,
+                              (GLfloat *)camera);
 
-  glEnableVertexAttribArray(shader_attrib_tile_pos);
-  glEnableVertexAttribArray(shader_attrib_tile_type);
-  glEnableVertexAttribArray(shader_attrib_tile_subtype);
-  renderer_check_gl_error("glEnableVertexAttribArray: Instance");
-
-  glVertexAttribIPointer(shader_attrib_tile_pos, 3, GL_INT, sizeof(struct tile),
-                         0);
-  glVertexAttribIPointer(shader_attrib_tile_type, 1, GL_INT,
-                         sizeof(struct tile),
-                         (GLvoid *)(sizeof(struct coord_tile)));
-  glVertexAttribIPointer(shader_attrib_tile_subtype, 1, GL_INT,
-                         sizeof(struct tile),
-                         (GLvoid *)(sizeof(struct coord_tile) + sizeof(int)));
-  renderer_check_gl_error("glVertexAttribPointer: Instance");
-
-  // setup instancing
-  glVertexAttribDivisor(shader_attrib_tile_pos, 1);
-  glVertexAttribDivisor(shader_attrib_tile_type, 1);
-  glVertexAttribDivisor(shader_attrib_tile_subtype, 1);
-
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-  // Text rendering stuff
-  glGenVertexArrays(1, &vao_text);
-  glGenBuffers(1, &vbo_text);
-  glGenTextures(1, &tex_text);
-  glBindVertexArray(vao_text);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_text);
-  glBindTexture(GL_TEXTURE_2D, tex_text);
-
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-  // create shader
-  vshader = shader_create_from_file(GL_VERTEX_SHADER,
-                                    "assets/shaders/text.vert.glsl");
-  fshader = shader_create_from_file(GL_FRAGMENT_SHADER,
-                                    "assets/shaders/text.frag.glsl");
-
-  shader_text = shader_program(vshader, fshader);
-  renderer_check_gl_error("Create program");
-  glUseProgram(shader_text);
-  renderer_check_gl_error("Use program");
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  glEnableVertexAttribArray(shader_text_attrib_pos);
-  glVertexAttribPointer(shader_text_attrib_pos, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  renderer_check_gl_error("Text: attrib pointer pos");
-
-  shader_text_color = glGetUniformLocation(shader_text, "textColor");
-  GLfloat color_white[3] = {1, 1, 1};
-  glUniform3fv(shader_text_color, 1, color_white);
-  shader_text_mat_proj = glGetUniformLocation(shader_text, "proj");
-  glUniformMatrix4fv(shader_text_mat_proj, 1, GL_FALSE, (GLfloat *)text_proj);
-
-  glBindVertexArray(0);
+  tilemap_init(map);
 
   renderer_update_projection();
-  renderer_check_gl_error("update proj");
+  gl_check_error("update proj");
 
   mat4x4_identity(model_entity_trans);
   mat4x4_identity(model_entity_rot);
-
-  glGenVertexArrays(1, &vao_entity);
-  glGenBuffers(1, &vbo_entity);
-  glGenBuffers(1, &ibo_entity);
-
-  glBindVertexArray(vao_entity);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_entity);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_entity);
-  glUseProgram(shader);
-
-  glEnableVertexAttribArray(shader_attrib_pos);
-  glEnableVertexAttribArray(shader_attrib_tex);
-  renderer_check_gl_error("glEnableVertexAttribArray");
-
-  glVertexAttribPointer(shader_attrib_pos, 3, GL_FLOAT, GL_FALSE,
-                        5 * sizeof(GLfloat), 0);
-  glVertexAttribPointer(shader_attrib_tex, 2, GL_FLOAT, GL_FALSE,
-                        5 * sizeof(GLfloat), (GLvoid *)(3 * sizeof(GLfloat)));
-
-  glBufferData(GL_ARRAY_BUFFER, sizeof(entity_vertices), entity_vertices,
-               GL_DYNAMIC_DRAW);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(entity_indices), entity_indices,
-               GL_DYNAMIC_DRAW);
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glBindVertexArray(0);
-  glUseProgram(0);
-}
-
-void renderer_update_map(struct map *map) {
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_tiles);
-  glBufferData(GL_ARRAY_BUFFER,
-               sizeof(struct tile) * map->size.nw * map->size.ne, map->tiles,
-               GL_STREAM_DRAW);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
-/* 0.0f, 2 * ENTITY_HEIGHT, 0.0f, 0.5f, 2.0f / 6.0f, */
-/* // East */
-/* 0.0f, 2 * ENTITY_HEIGHT, 2.0f, 1.0f, 1.0f / 6.0f, */
-/* // West */
-/* 2.0f, 2 * ENTITY_HEIGHT, 0.0f, 0.0f, 1.0f / 6.0f, */
-/* // North */
-/* 2.0f, 2 * ENTITY_HEIGHT, 2.0f, 0.5f, 0.0f, */
-
-/* // Bottom */
-/* // South */
-/* 0.0f, 0.0f, 0.0f, 0.5f, 1.0f, */
-/* // East */
-/* 0.0f, 0.0f, 2.0f, 1.0f, 5.0f / 6.0f, */
-/* // West */
-/* 2.0f, 0.0f, 0.0f, 0.0f, 5.0f / 6.0f, */
-
-void renderer_draw_animation(struct animation *anim, float tdiff) {
-  animation_update(anim, tdiff);
-  entity_vertices[3] = 0.5f / ((float)anim->frames) +
-                       ((float)anim->current_frame) / ((float)anim->frames);
-  entity_vertices[3 + 5] = 1.0f / ((float)anim->frames) +
-                           ((float)anim->current_frame) / ((float)anim->frames);
-  entity_vertices[3 + 5 * 2] =
-      0.0f / ((float)anim->frames) +
-      ((float)anim->current_frame) / ((float)anim->frames);
-  entity_vertices[3 + 5 * 3] =
-      0.5f / ((float)anim->frames) +
-      ((float)anim->current_frame) / ((float)anim->frames);
-  entity_vertices[3 + 5 * 4] =
-      0.5f / ((float)anim->frames) +
-      ((float)anim->current_frame) / ((float)anim->frames);
-  entity_vertices[3 + 5 * 5] =
-      1.0f / ((float)anim->frames) +
-      ((float)anim->current_frame) / ((float)anim->frames);
-  entity_vertices[3 + 5 * 6] =
-      0.0f / ((float)anim->frames) +
-      ((float)anim->current_frame) / ((float)anim->frames);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(entity_vertices), entity_vertices,
-               GL_DYNAMIC_DRAW);
 }
 
 void renderer_draw_entity(struct entity *entity, float tdiff) {
-  mat4x4 model_entity;
-  glBindVertexArray(vao_entity);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_entity);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_entity);
-  if (entity->tex && !entity->anim) {
-    glBindTexture(GL_TEXTURE_2D, entity->tex->id);
-  } else if (entity->anim) {
-    renderer_draw_animation(entity->anim, tdiff);
-    glBindTexture(GL_TEXTURE_2D, entity->anim->tex->id);
-  }
-
-  mat4x4_translate(model_entity_trans, entity->phys->pos.nw,
-                   entity->phys->pos.up, entity->phys->pos.ne);
-  mat4x4_rotate_Y(model_entity_rot, model_entity_rot, 0.00f);
-  mat4x4_mul(model_entity, model_entity_trans, model_entity_rot);
-  glUniformMatrix4fv(shader_mat_model, 1, GL_FALSE, model_entity[0]);
-  renderer_check_gl_error("entity model uniform");
-
-  glDrawElements(GL_TRIANGLES, 18, GL_UNSIGNED_INT, 0);
-  renderer_check_gl_error("entity draw");
-
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  glBindVertexArray(0);
-  glBindTexture(GL_TEXTURE_2D, 0);
+  render_object_draw(tdiff, entity->render_obj, &entity->phys->pos);
 }
 
 void renderer_draw_entities(array_entity *entities, float tdiff) {
@@ -396,33 +160,26 @@ void renderer_camera_zoom(float s) {
 }
 
 void renderer_camera_update() {
-  glUseProgram(shader);
+  shader_program_use(&world_shader);
   mat4x4_translate(camera, camera_pos.x, camera_pos.y, 0);
-  glUniformMatrix4fv(shader_mat_camera, 1, GL_FALSE, camera[0]);
+
+  shader_program_uniform_mat4(&world_shader, "camera", 1, GL_FALSE, camera[0]);
+
   glUseProgram(0);
 }
 
-double ang = 0.0f;
-
-void renderer_render(float tdiff, struct map *map, array_entity *entities) {
+void renderer_draw_debug_text(float tdiff) {
   struct coord_tile mpos_tile;
   struct coord_camera mpos_cam;
   struct coord_window mpos_win;
   struct coord_real mpos_real;
+
   glfwGetCursorPos(window, &mpos_win.x, &mpos_win.y);
   mpos_cam = coord_camera_from_window(mpos_win);
   mpos_tile = coord_tile_from_camera(mpos_cam, 0.0f);
   mpos_real = coord_real_from_camera(mpos_cam, 0.0f);
-
-  // Clear the screen to black
-  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-  renderer_camera_update();
-  renderer_draw_map(map);
-  renderer_draw_entities(entities, tdiff);
-
   char cstr[64], mstr_w[64], mstr_c[64], mstr_t[64], mstr_r[64], fpsstr[64];
+
   sprintf(fpsstr, "FPS: %0.3f", 1000.0f / tdiff);
   sprintf(mstr_w, "Mouse (window): %0.2f %0.2f", mpos_win.x, mpos_win.y);
   sprintf(mstr_c, "Mouse (camera): %0.2f %0.2f", mpos_cam.x, mpos_cam.y);
@@ -430,70 +187,31 @@ void renderer_render(float tdiff, struct map *map, array_entity *entities) {
   sprintf(mstr_r, "Mouse (real): %0.2f %0.2f", mpos_real.nw, mpos_real.ne);
   sprintf(cstr, "Camera: %0.0f %0.0f (%0.2f)", camera_pos.x, camera_pos.y,
           camera_zoom);
-  renderer_draw_text(fpsstr, 5.0f, window_size.y - 19.0f);
-  renderer_draw_text(mstr_w, 5.0f, 24.0f);
-  renderer_draw_text(mstr_c, 5.0f, 43.0f);
-  renderer_draw_text(mstr_t, 5.0f, 62.0f);
-  renderer_draw_text(mstr_r, 5.0f, 81.0f);
-  renderer_draw_text(cstr, 5.0f, 5.0f);
+  text_draw(fpsstr, 5.0f, window_size.y - 19.0f);
+  text_draw(mstr_w, 5.0f, 24.0f);
+  text_draw(mstr_c, 5.0f, 43.0f);
+  text_draw(mstr_t, 5.0f, 62.0f);
+  text_draw(mstr_r, 5.0f, 81.0f);
+  text_draw(cstr, 5.0f, 5.0f);
+}
+
+void renderer_update_model() {
+  shader_program_use(&world_shader);
+  shader_program_uniform_mat4(&world_shader, "model", 1, GL_FALSE,
+                              (GLfloat *)model);
+}
+
+void renderer_render(float tdiff, struct map *map, array_entity *entities) {
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  renderer_update_model();
+  renderer_camera_update();
+  tilemap_draw(map);
+  renderer_draw_entities(entities, tdiff);
+  renderer_draw_debug_text(tdiff);
 
   glfwSwapBuffers(window);
-}
-
-void renderer_draw_map(struct map *map) {
-  glBindVertexArray(vao_tiles);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_tiles);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_tiles);
-  glBindTexture(GL_TEXTURE_2D, texture.id);
-
-  glUseProgram(shader);
-
-  glUniformMatrix4fv(shader_mat_model, 1, GL_FALSE, model[0]);
-  glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0,
-                          map->size.nw * map->size.ne);
-
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  glBindTexture(GL_TEXTURE_2D, 0);
-  glBindVertexArray(0);
-}
-
-void renderer_draw_text(const char *text, float x, float y) {
-  float sx = 1.0f;
-  float sy = 1.0f;
-
-  glBindVertexArray(vao_text);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo_text);
-  glBindTexture(GL_TEXTURE_2D, tex_text);
-  glUseProgram(shader_text);
-
-  const char *p;
-  for (p = text; *p; p++) {
-    if (FT_Load_Char(face, *p, FT_LOAD_RENDER))
-      continue;
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, g->bitmap.width, g->bitmap.rows, 0,
-                 GL_RED, GL_UNSIGNED_BYTE, g->bitmap.buffer);
-
-    float x2 = x + g->bitmap_left * sx;
-    float y2 = -y - g->bitmap_top * sy;
-    float w = g->bitmap.width * sx;
-    float h = g->bitmap.rows * sy;
-
-    GLfloat box[4][4] = {
-        {x2, -y2, 0, 0},
-        {x2 + w, -y2, 1, 0},
-        {x2, -y2 - h, 0, 1},
-        {x2 + w, -y2 - h, 1, 1},
-    };
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(box), box, GL_DYNAMIC_DRAW);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-    x += (g->advance.x / 64.0) * sx;
-    y += (g->advance.y / 64.0) * sy;
-  }
-  glBindVertexArray(0);
 }
 
 void renderer_deinit() {
@@ -501,7 +219,8 @@ void renderer_deinit() {
 }
 
 void renderer_update_projection() {
-  glUseProgram(shader);
+  shader_program_use(&world_shader);
+
   float aspect = window_size.y / window_size.x;
   float screen_tiles = window_size.x / tile_pixel_size.x;
   ortho_size.x = screen_tiles * SQRT_2;
@@ -509,11 +228,11 @@ void renderer_update_projection() {
   mat4x4_ortho(proj, -ortho_size.x / camera_zoom, ortho_size.x / camera_zoom,
                -ortho_size.y / camera_zoom, ortho_size.y / camera_zoom, 0.0f,
                1000.0f);
-  glUniformMatrix4fv(shader_mat_proj, 1, GL_FALSE, (GLfloat *)proj);
 
-  glUseProgram(shader_text);
-  mat4x4_ortho(text_proj, 0, window_size.x, 0, window_size.y, 0, 1.0f);
-  glUniformMatrix4fv(shader_text_mat_proj, 1, GL_FALSE, (GLfloat *)text_proj);
+  shader_program_uniform_mat4(&world_shader, "proj", 1, GL_FALSE,
+                              (GLfloat *)proj);
+
+  text_update_projection(window_size);
 }
 
 void printm(mat4x4 m) {

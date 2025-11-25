@@ -3,7 +3,11 @@
  * author: jfeo (jens@feodor.dk)
  * date: 17/08/2016
  */
+#include "animation.h"
 #include "renderer.h"
+
+#include "data.h"
+#include "render_object.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -11,10 +15,10 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "animation.h"
 #include "interaction.h"
 #include "map.h"
 #include "phys.h"
+#include "shader.h"
 #include "unit.h"
 
 struct map map;
@@ -136,16 +140,24 @@ int main(int argc, char *argv[]) {
 
   struct texture texture_unit = texture_create("assets/tex/units.png");
   struct coord_real moving_unit_start = {.nw = 1.0f, .up = 0.1f, .ne = 1.0f};
+  struct render_object moving_robj = render_object_create(
+      "moving unit", &texture_unit, &world_shader, sizeof(entity_vertices),
+      entity_vertices, sizeof(entity_indices), entity_indices);
   moving_unit =
-      unit_create(&texture_unit, phys_radial_create(moving_unit_start));
-  moving_unit->entity->anim = animation_create(&texture_unit, 8, 30.0f, 32);
+      unit_create(&moving_robj, phys_radial_create(moving_unit_start));
+  moving_unit->entity->render_obj->anim =
+      animation_create(&texture_unit, 8, 30.0f, 32);
   moving_unit->action = (struct action *)malloc(sizeof(struct action));
   moving_unit->action->type = MOVE;
   moving_unit->action->data.move.to = to;
 
   struct coord_real static_unit_pos = {.nw = 50.0f, .up = 0.0f, .ne = 50.0f};
-  static_unit = unit_create(&texture_unit, phys_radial_create(static_unit_pos));
-  static_unit->entity->anim = animation_create(&texture_unit, 8, 100.0f, 32);
+  struct render_object static_robj = render_object_create(
+      "static unit", &texture_unit, &world_shader, sizeof(entity_vertices),
+      entity_vertices, sizeof(entity_indices), entity_indices);
+  static_unit = unit_create(&static_robj, phys_radial_create(static_unit_pos));
+  static_unit->entity->render_obj->anim =
+      animation_create(&texture_unit, 8, 100.0f, 32);
   struct timeval tv_before;
   struct timeval tv_after;
   struct coord_real move_diff;

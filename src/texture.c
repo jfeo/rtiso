@@ -1,4 +1,5 @@
 #include "texture.h"
+#include "gl.h"
 
 #include <SOIL/SOIL.h>
 
@@ -20,5 +21,7 @@ struct texture texture_create(const char *path) {
   SOIL_free_image_data(image);
 
   glBindTexture(GL_TEXTURE_2D, 0); // unbind
+
+  gl_check_error("texture_create error %s", path);
   return tex;
 }
