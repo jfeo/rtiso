@@ -12,13 +12,13 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
 #include <unistd.h>
 
 #include "interaction.h"
 #include "map.h"
 #include "phys.h"
 #include "shader.h"
+#include "timer.h"
 #include "unit.h"
 
 struct map map;
@@ -158,24 +158,21 @@ int main(int argc, char *argv[]) {
   static_unit = unit_create(&static_robj, phys_radial_create(static_unit_pos));
   static_unit->entity->render_obj->anim =
       animation_create(&texture_unit, 8, 100.0f, 32);
-  struct timeval tv_before;
-  struct timeval tv_after;
   struct coord_real move_diff;
-  double ms = 0.0f;
 
   array_entity entities = array_entity_init();
   array_entity_add(&entities, moving_unit->entity);
   array_entity_add(&entities, static_unit->entity);
 
+  struct timer timer = timer_init();
+  double ms;
+
   printf("entering engine loop\n");
   while (!glfwWindowShouldClose(window)) {
-    gettimeofday(&tv_before, NULL);
+    ms = timer_elapsed_ms(&timer);
     interaction_update();
     renderer_render(ms, &map, &entities);
     move_unit(moving_unit, move_diff, ms);
-    gettimeofday(&tv_after, NULL);
-    ms = (tv_after.tv_sec - tv_before.tv_sec) * 1000.0f +
-         (tv_after.tv_usec - tv_before.tv_usec) / 1000.0f;
   }
 
   renderer_deinit();
