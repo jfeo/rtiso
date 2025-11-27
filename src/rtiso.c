@@ -18,11 +18,11 @@
 #include "map.h"
 #include "phys.h"
 #include "shader.h"
+#include "time.h"
 #include "timer.h"
 #include "unit.h"
 
 struct map map;
-int key_down[256];
 
 struct coord_real to = {.ne = 30.0f, .nw = 15.0f};
 struct unit *moving_unit;
@@ -113,7 +113,7 @@ GLFWwindow *createWindow() {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+  glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
   GLFWwindow *window =
       glfwCreateWindow(window_size.x, window_size.y, "rtiso", NULL, NULL);
@@ -121,6 +121,8 @@ GLFWwindow *createWindow() {
 
   return window;
 }
+
+void create_units() {}
 
 int main(int argc, char *argv[]) {
   GLFWwindow *window = createWindow();
@@ -134,12 +136,15 @@ int main(int argc, char *argv[]) {
   printf("initializing renderer system\n");
   renderer_init(window, &map);
 
+  printf("initializing physics system\n");
+  phys_init();
+
   array_scbs_add(&interaction.scroll_callbacks, &scroll_callback);
   array_dkcbs_add(&interaction.down_keys_callbacks, &handle_down_keys);
   array_mbcbs_add(&interaction.mouse_button_callbacks, &mouse_button_callback);
 
   struct texture texture_unit = texture_create("assets/tex/units.png");
-  struct coord_real moving_unit_start = {.nw = 1.0f, .up = 0.1f, .ne = 1.0f};
+  struct coord_real moving_unit_start = {.nw = 1.0f, .up = 0.0f, .ne = 1.0f};
   struct render_object moving_robj = render_object_create(
       "moving unit", &texture_unit, &world_shader, sizeof(entity_vertices),
       entity_vertices, sizeof(entity_indices), entity_indices);
@@ -172,7 +177,7 @@ int main(int argc, char *argv[]) {
     ms = timer_elapsed_ms(&timer);
     interaction_update();
     renderer_render(ms, &map, &entities);
-    move_unit(moving_unit, move_diff, ms);
+    phys_update(ms);
   }
 
   renderer_deinit();

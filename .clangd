@@ -1,0 +1,1 @@
+CompileFlags: { “Add”: [ “-std=c11” ], “Compiler”: “clang” } 
