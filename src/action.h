@@ -3,7 +3,7 @@
 
 #include "coord.h"
 
-enum ACTION_TYPE { MOVE };
+enum ACTION_TYPE { ACTION_NONE, ACTION_MOVE };
 
 struct action_move {
   struct coord_real to;
@@ -15,5 +15,7 @@ struct action {
     struct action_move move;
   } data;
 };
+
+void action_update(struct action *a);
 
 #endif /* ifndef __RTISO_ACTION_H__ */

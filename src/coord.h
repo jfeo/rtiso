@@ -2,23 +2,32 @@
 #define __RTISO_COORD_H__
 
 struct coord_tile {
-	int nw, up, ne;
+  int nw, up, ne;
 };
 
 struct coord_real {
-	float nw, up, ne;
+  float nw, up, ne;
 };
 
 struct coord_camera {
-	double x, y;
+  double x, y;
 };
 
 struct coord_window {
-	double x, y;
+  double x, y;
 };
 
-//
 double coord_real_dist(struct coord_real a, struct coord_real b);
+
+// returns b added to a, e.g. a+b
+struct coord_real coord_real_add(struct coord_real a, struct coord_real b);
+
+// returns b subtracted from a, e.g. a-b
+struct coord_real coord_real_sub(struct coord_real a, struct coord_real b);
+
+// returns a normalized coordinate (e.g. if it were a vector, its magnitude
+// would be 1)
+struct coord_real coord_real_normalize(struct coord_real a);
 
 // conversions between coordinates
 struct coord_tile coord_tile_from_camera(struct coord_camera pos, int up);
@@ -28,7 +37,7 @@ struct coord_window coord_window_from_tile(struct coord_tile pos);
 struct coord_camera coord_camera_from_window(struct coord_window pos);
 struct coord_window coord_window_from_camera(struct coord_camera pos);
 /* coord_tile_t tile_from_real(coord_real_t coord); */
-/* coord_real_t real_from_window(coord_window_t coord); */
+struct coord_real coord_real_from_window(struct coord_window win, float up);
 /* coord_real_t real_from_tile(coord_tile_t coord, coord_real_t frac); */
 /* coord_window_t window_from_real(coord_real_t coord); */
 

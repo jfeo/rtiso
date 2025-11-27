@@ -10,6 +10,7 @@ stdenv.mkDerivation {
     libGLU
     soil
     freetype
+    gdb
   ];
   shellHook = "";
 }

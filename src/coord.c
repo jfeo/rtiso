@@ -7,6 +7,31 @@ double coord_real_dist(struct coord_real a, struct coord_real b) {
   return sqrt(pow(a.nw - b.nw, 2) + pow(a.ne - b.ne, 2) + pow(a.up - b.up, 2));
 }
 
+struct coord_real coord_real_add(struct coord_real a, struct coord_real b) {
+  struct coord_real result;
+  result.ne = a.ne + b.ne;
+  result.nw = a.nw + b.nw;
+  result.up = a.up + b.up;
+  return result;
+}
+
+struct coord_real coord_real_sub(struct coord_real a, struct coord_real b) {
+  struct coord_real result;
+  result.ne = a.ne - b.ne;
+  result.nw = a.nw - b.nw;
+  result.up = a.up - b.up;
+  return result;
+}
+
+struct coord_real coord_real_normalize(struct coord_real a) {
+  struct coord_real result;
+  double mag = coord_real_dist((struct coord_real){0}, a);
+  result.ne = a.ne / mag;
+  result.nw = a.nw / mag;
+  result.up = a.up / mag;
+  return result;
+}
+
 struct coord_tile coord_tile_from_camera(struct coord_camera pos, int up) {
   struct coord_tile result;
   result = coord_tile_from_real(coord_real_from_camera(pos, (float)up));
@@ -55,5 +80,15 @@ struct coord_camera coord_camera_from_window(struct coord_window pos) {
 
   result.x = pos.x - window_size.x / 2.0f - cam_scaled.x;
   result.y = pos.y - window_size.y / 2.0f + cam_scaled.y;
+  return result;
+}
+
+struct coord_real coord_real_from_window(struct coord_window win, float up) {
+  struct coord_real result;
+  struct coord_camera intermediate;
+
+  intermediate = coord_camera_from_window(win);
+  result = coord_real_from_camera(intermediate, up);
+
   return result;
 }

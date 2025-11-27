@@ -12,7 +12,6 @@ void phys_init() { radials = array_phys_radial_init(); };
 
 void phys_update(double tdiff_ms) {
   for (int i = 0; i < radials.count; i++) {
-    printf("radial[%d]:\n", i);
     phys_radial_update(tdiff_ms, radials.elems[i]);
   }
 }
@@ -38,12 +37,6 @@ void phys_radial_update(double tdiff_ms, struct phys_radial *obj) {
   obj->pos.nw += obj->vel.nw * tdiff_ms / 1000.0;
   obj->pos.ne += obj->vel.ne * tdiff_ms / 1000.0;
   obj->pos.up += obj->vel.up * tdiff_ms / 1000.0;
-
-  printf("  pos = (nw: %f, ne: %f, up: %f)\n", obj->pos.nw, obj->pos.ne,
-         obj->pos.up);
-  printf("  vel = (nw: %f, ne: %f, up: %f)\n", obj->vel.nw, obj->vel.ne,
-         obj->vel.up);
-  ;
 
   if (obj->pos.up < 0.0f) {
     obj->vel.up = 0.0f;

@@ -3,13 +3,14 @@
  * author: jfeo (jens@feodor.dk)
  * date: 17/08/2016
  */
+#include "action.h"
 #include "animation.h"
+#include "coord.h"
 #include "renderer.h"
 
 #include "data.h"
 #include "render_object.h"
 
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -22,11 +23,17 @@
 #include "timer.h"
 #include "unit.h"
 
+int quit = 0;
 struct map map;
-
 struct coord_real to = {.ne = 30.0f, .nw = 15.0f};
 struct unit *moving_unit;
-struct unit *static_unit;
+struct unit *following_unit;
+double scroll_zoom_sensitivity = 100.0f;
+
+struct render_object following_robj;
+struct render_object moving_robj;
+struct texture texture_unit;
+array_entity entities;
 
 void mouse_button_callback(int button, int action, int mods) {
   struct coord_window cursor_pos = interaction.cursor_pos;
@@ -47,8 +54,9 @@ void mouse_button_callback(int button, int action, int mods) {
       printf("Camera Pos:   %f %f\n", camera_pos.x, camera_pos.y);
       break;
     case GLFW_MOUSE_BUTTON_RIGHT:
-      moving_unit->action->data.move.to.ne = cursor_pos_real.ne;
-      moving_unit->action->data.move.to.nw = cursor_pos_real.nw;
+      moving_unit->action.type = ACTION_MOVE;
+      moving_unit->action.data.move.to.ne = cursor_pos_real.ne;
+      moving_unit->action.data.move.to.nw = cursor_pos_real.nw;
       break;
     }
     break;
@@ -56,7 +64,7 @@ void mouse_button_callback(int button, int action, int mods) {
 }
 
 void scroll_callback(double xoffset, double yoffset) {
-  renderer_camera_zoom((float)yoffset);
+  renderer_camera_zoom((float)yoffset / scroll_zoom_sensitivity);
 }
 
 void handle_down_keys(int *key_down) {
@@ -73,41 +81,21 @@ void handle_down_keys(int *key_down) {
     renderer_camera_move(0.0f, 2.0f);
   }
   if (key_down[GLFW_KEY_Q]) {
-    renderer_camera_zoom(0.1);
+    quit = 1;
   }
   if (key_down[GLFW_KEY_E]) {
     renderer_camera_zoom(-0.1);
   }
 }
 
-void move_unit(struct unit *moving_unit, struct coord_real move_diff,
-               float ms) {
-  float move_dist;
-
-  if (moving_unit->action->type != MOVE) {
-    return;
-  }
-
-  move_diff.ne =
-      moving_unit->action->data.move.to.ne - moving_unit->entity->phys->pos.ne;
-  move_diff.nw =
-      moving_unit->action->data.move.to.nw - moving_unit->entity->phys->pos.nw;
-  move_dist = 1.0f / sqrt(powf(move_diff.ne, 2.0f) + powf(move_diff.nw, 2.0f));
-
-  if (pow(move_diff.ne, 2.0f) < pow(move_dist, 2.0f)) {
-    moving_unit->entity->phys->pos.ne = moving_unit->action->data.move.to.ne;
-  } else {
-    moving_unit->entity->phys->pos.ne += move_dist * move_diff.ne * ms / 100.0f;
-  }
-
-  if (pow(move_diff.nw, 2.0f) < pow(move_dist, 2.0f)) {
-    moving_unit->entity->phys->pos.nw = moving_unit->action->data.move.to.nw;
-  } else {
-    moving_unit->entity->phys->pos.nw += move_dist * move_diff.nw * ms / 100.0f;
-  }
+void unit_follow_cursor_update() {
+  struct coord_real cursor_real =
+      coord_real_from_window(interaction.cursor_pos, 0.0);
+  following_unit->action.type = ACTION_MOVE;
+  following_unit->action.data.move.to = cursor_real;
 }
 
-GLFWwindow *createWindow() {
+GLFWwindow *create_window() {
   glfwInit(); // initialize glfw
 
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -122,10 +110,36 @@ GLFWwindow *createWindow() {
   return window;
 }
 
-void create_units() {}
+void create_units() {
+  texture_unit = texture_create("assets/tex/units.png");
+  struct coord_real moving_unit_start = {.nw = 1.0f, .up = 0.0f, .ne = 1.0f};
+  moving_robj = render_object_create(
+      "moving unit", &texture_unit, &world_shader, sizeof(entity_vertices),
+      entity_vertices, sizeof(entity_indices), entity_indices);
+  moving_unit =
+      unit_create(&moving_robj, phys_radial_create(moving_unit_start));
+  moving_unit->entity->render_obj->anim =
+      animation_create(&texture_unit, 8, 30.0f, 32);
+  moving_unit->action.type = ACTION_MOVE;
+  moving_unit->action.data.move.to = to;
+
+  struct coord_real following_unit_pos = {.nw = 50.0f, .up = 0.0f, .ne = 50.0f};
+  following_robj = render_object_create(
+      "following unit", &texture_unit, &world_shader, sizeof(entity_vertices),
+      entity_vertices, sizeof(entity_indices), entity_indices);
+  following_unit =
+      unit_create(&following_robj, phys_radial_create(following_unit_pos));
+  following_unit->entity->render_obj->anim =
+      animation_create(&texture_unit, 8, 100.0f, 32);
+  struct coord_real move_diff;
+
+  entities = array_entity_init();
+  array_entity_add(&entities, moving_unit->entity);
+  array_entity_add(&entities, following_unit->entity);
+}
 
 int main(int argc, char *argv[]) {
-  GLFWwindow *window = createWindow();
+  GLFWwindow *window = create_window();
 
   printf("initializing interaction system\n");
   interaction_init(window);
@@ -143,41 +157,20 @@ int main(int argc, char *argv[]) {
   array_dkcbs_add(&interaction.down_keys_callbacks, &handle_down_keys);
   array_mbcbs_add(&interaction.mouse_button_callbacks, &mouse_button_callback);
 
-  struct texture texture_unit = texture_create("assets/tex/units.png");
-  struct coord_real moving_unit_start = {.nw = 1.0f, .up = 0.0f, .ne = 1.0f};
-  struct render_object moving_robj = render_object_create(
-      "moving unit", &texture_unit, &world_shader, sizeof(entity_vertices),
-      entity_vertices, sizeof(entity_indices), entity_indices);
-  moving_unit =
-      unit_create(&moving_robj, phys_radial_create(moving_unit_start));
-  moving_unit->entity->render_obj->anim =
-      animation_create(&texture_unit, 8, 30.0f, 32);
-  moving_unit->action = (struct action *)malloc(sizeof(struct action));
-  moving_unit->action->type = MOVE;
-  moving_unit->action->data.move.to = to;
-
-  struct coord_real static_unit_pos = {.nw = 50.0f, .up = 0.0f, .ne = 50.0f};
-  struct render_object static_robj = render_object_create(
-      "static unit", &texture_unit, &world_shader, sizeof(entity_vertices),
-      entity_vertices, sizeof(entity_indices), entity_indices);
-  static_unit = unit_create(&static_robj, phys_radial_create(static_unit_pos));
-  static_unit->entity->render_obj->anim =
-      animation_create(&texture_unit, 8, 100.0f, 32);
-  struct coord_real move_diff;
-
-  array_entity entities = array_entity_init();
-  array_entity_add(&entities, moving_unit->entity);
-  array_entity_add(&entities, static_unit->entity);
+  units_init();
+  create_units();
 
   struct timer timer = timer_init();
   double ms;
 
   printf("entering engine loop\n");
-  while (!glfwWindowShouldClose(window)) {
+  while (!quit && !glfwWindowShouldClose(window)) {
     ms = timer_elapsed_ms(&timer);
     interaction_update();
     renderer_render(ms, &map, &entities);
     phys_update(ms);
+    unit_follow_cursor_update();
+    units_update(ms);
   }
 
   renderer_deinit();

@@ -8,7 +8,7 @@ struct timer {
 };
 
 struct timer timer_init();
-double timer_elapsed_ms(struct timer *timer);
+float timer_elapsed_ms(struct timer *timer);
 void msleep(int ms);
 
 #endif /* ifndef _RTISO_TIMER_H_ */

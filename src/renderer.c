@@ -154,8 +154,13 @@ void renderer_camera_move(float x, float y) {
   camera_pos.y += y;
 }
 
-void renderer_camera_zoom(float s) {
-  camera_zoom += s;
+void renderer_camera_zoom(float zoom_diff) {
+  if (zoom_diff > 0 && camera_zoom + zoom_diff > 1000.0f) {
+    camera_zoom = 1000.0f;
+  } else {
+    camera_zoom += zoom_diff;
+  }
+
   renderer_update_projection();
 }
 
@@ -221,13 +226,14 @@ void renderer_deinit() {
 void renderer_update_projection() {
   shader_program_use(&world_shader);
 
+  double scale = pow(2.0, camera_zoom);
+
   float aspect = window_size.y / window_size.x;
   float screen_tiles = window_size.x / tile_pixel_size.x;
   ortho_size.x = screen_tiles * SQRT_2;
   ortho_size.y = ortho_size.x * aspect;
-  mat4x4_ortho(proj, -ortho_size.x / camera_zoom, ortho_size.x / camera_zoom,
-               -ortho_size.y / camera_zoom, ortho_size.y / camera_zoom, 0.0f,
-               1000.0f);
+  mat4x4_ortho(proj, -ortho_size.x / scale, ortho_size.x / scale,
+               -ortho_size.y / scale, ortho_size.y / scale, 0.0f, 1000.0f);
 
   shader_program_uniform_mat4(&world_shader, "proj", 1, GL_FALSE,
                               (GLfloat *)proj);
