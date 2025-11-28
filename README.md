@@ -6,6 +6,8 @@ graphics.
 The main idea is to project sprites onto shapes as textures, in order for the
 rendered objects to mesh together correctly.
 
+![rtiso window with two units overlapping](./rtiso-overlapping-sprites.png)
+
 The project relies on `OpenGL`, and `GLEW`, for rendering graphics, `GLFW` for
 creating the window, and interaction, and `SOIL` for loading images.
 
