@@ -8,7 +8,7 @@ ARRAY_DEFINE(struct phys_radial *, phys_radial)
 
 array_phys_radial radials;
 
-void phys_init() { radials = array_phys_radial_init(); };
+void phys_init() { radials = array_phys_radial_init(); }
 
 void phys_update(double tdiff_ms) {
   for (int i = 0; i < radials.count; i++) {
