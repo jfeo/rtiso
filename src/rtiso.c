@@ -3,23 +3,20 @@
  * author: jfeo (jens@feodor.dk)
  * date: 17/08/2016
  */
-#include "action.h"
-#include "animation.h"
-#include "coord.h"
-#include "renderer.h"
-
-#include "data.h"
-#include "render_object.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "action.h"
+#include "animation.h"
+#include "coord.h"
+#include "data.h"
 #include "interaction.h"
 #include "map.h"
 #include "phys.h"
+#include "render_object.h"
+#include "renderer.h"
 #include "shader.h"
-#include "time.h"
 #include "timer.h"
 #include "unit.h"
 
