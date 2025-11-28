@@ -1,5 +1,5 @@
-CC = gcc# -D_POSIX_C_SOURCE=200112
-CFLAGS=${CFLAGS_EXTRA} -I. -DGLEW_STATIC -std=c11 -pedantic
+CC = gcc
+CFLAGS=-I. -DGLEW_STATIC -std=c11 -pedantic
 LDLIBS=-lrt -lGL -lglfw -lGLEW -lm -lSOIL -lfreetype
 BINDIR?=bin
 
@@ -16,7 +16,7 @@ RTISO_OBJ = $(OBJDIR)/rtiso.o
 # test.c includes all other test files and creates a master test suite
 # which means that all the test files are compiled into a single object
 # which is then linked to the library objects to form the test executable.
-TEST_SRCS = coord_test.c
+TEST_SRCS = coord_test.c unit_test.c
 TEST_ENTRY_SRC = test.c
 TEST_OBJ = $(OBJDIR)/test.o
 
@@ -38,6 +38,6 @@ $(BINDIR)/test: $(TEST_OBJ) $(LIB_OBJS)
 
 # Because we include test source files directly in the test entrypoint, we only
 # need to build the test entrypoint object
-$(OBJ_TEST): $(TEST_ENTRY_SRC) $(TEST_SRCS)
+$(TEST_OBJ): $(TEST_ENTRY_SRC) $(TEST_SRCS)
 	@mkdir -p $(@D)
 	$(CC) -g -o $@ $(CFLAGS) -c $(TEST_ENTRY_SRC)
