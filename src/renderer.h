@@ -1,7 +1,7 @@
 #ifndef __RTISO_RENDERER_H__
 #define __RTISO_RENDERER_H__
 
-#include <GL/glew.h>
+#include <GL/gl.h>
 #include <GLFW/glfw3.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -31,31 +31,9 @@ extern GLuint tile_vindices[];
 ARRAY_DECLARE(struct entity *, entity)
 
 void renderer_init(GLFWwindow *window, struct map *map);
-
-GLint renderer_check_gl_error(const char *msg);
-
-void renderer_draw_map(struct map *map);
-
 void renderer_render(float tdiff, struct map *map, array_entity *entities);
-
+void renderer_camera_zoom(float zoom_diff);
 void renderer_camera_move(float x, float y);
-
-void renderer_camera_zoom(float s);
-
-void renderer_camera_update();
-
-void renderer_update_projection();
-
-void renderer_draw_animation(struct animation *anim, float tdiff);
-
-void renderer_draw_entity(struct entity *entity, float tdiff);
-
-void renderer_draw_text(const char *text, float x, float y);
-
-void renderer_update_map(struct map *map);
-
 void renderer_deinit();
-
-void printm(mat4x4 m);
 
 #endif // ifndef __RTISO_RENDERER_H__

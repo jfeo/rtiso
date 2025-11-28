@@ -1,3 +1,4 @@
+#include <GL/glew.h>
 #include <stdio.h>
 
 #include "renderer.h"
@@ -33,6 +34,24 @@ mat4x4 camera;
 vec3 pos = {0.0f, 0.0f, 0.0f};
 vec3 front = {0.0f, 0.0f, 1.0f};
 vec3 up = {0.0f, 1.0f, 0.0f};
+
+void renderer_update_projection() {
+  shader_program_use(&world_shader);
+
+  double scale = pow(2.0, camera_zoom);
+
+  float aspect = window_size.y / window_size.x;
+  float screen_tiles = window_size.x / tile_pixel_size.x;
+  ortho_size.x = screen_tiles * SQRT_2;
+  ortho_size.y = ortho_size.x * aspect;
+  mat4x4_ortho(proj, -ortho_size.x / scale, ortho_size.x / scale,
+               -ortho_size.y / scale, ortho_size.y / scale, 0.0f, 1000.0f);
+
+  shader_program_uniform_mat4(&world_shader, "proj", 1, GL_FALSE,
+                              (GLfloat *)proj);
+
+  text_update_projection(window_size);
+}
 
 void renderer_window_size_callback(int width, int height) {
   window_size.x = width;
@@ -221,28 +240,4 @@ void renderer_render(float tdiff, struct map *map, array_entity *entities) {
 
 void renderer_deinit() {
   glfwTerminate(); // deinitialize glfw
-}
-
-void renderer_update_projection() {
-  shader_program_use(&world_shader);
-
-  double scale = pow(2.0, camera_zoom);
-
-  float aspect = window_size.y / window_size.x;
-  float screen_tiles = window_size.x / tile_pixel_size.x;
-  ortho_size.x = screen_tiles * SQRT_2;
-  ortho_size.y = ortho_size.x * aspect;
-  mat4x4_ortho(proj, -ortho_size.x / scale, ortho_size.x / scale,
-               -ortho_size.y / scale, ortho_size.y / scale, 0.0f, 1000.0f);
-
-  shader_program_uniform_mat4(&world_shader, "proj", 1, GL_FALSE,
-                              (GLfloat *)proj);
-
-  text_update_projection(window_size);
-}
-
-void printm(mat4x4 m) {
-  for (int i = 0; i < 4; i++) {
-    printf("%f %f %f %f\n", m[0][i], m[1][i], m[2][i], m[3][i]);
-  }
 }
