@@ -1,7 +1,7 @@
-#include "util.h"
-
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "util.h"
 
 char *util_read_file(const char *file) {
   FILE *f = fopen(file, "rb");
@@ -10,7 +10,13 @@ char *util_read_file(const char *file) {
   fseek(f, 0, SEEK_SET); // same as rewind(f);
 
   char *text = (char *)malloc(fsize + 1);
-  fread(text, fsize, 1, f);
+  if (fread(text, fsize, 1, f)) {
+    int errcode = ferror(f);
+    if (errcode) {
+      printf("Error: reading file returned error %d\n", errcode);
+    }
+  }
+
   fclose(f);
 
   text[fsize] = 0;
