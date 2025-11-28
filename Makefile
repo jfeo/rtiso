@@ -12,6 +12,11 @@ build:
 run: build
 	$(BINDIR)/rtiso
 
+.PHONY: test
+test:
+	$(MAKE) -C $(SRCDIR) $(BINDIR)/test
+	$(BINDIR)/test
+
 .PHONY: clean
 clean:
 	rm -rf $(BINDIR)

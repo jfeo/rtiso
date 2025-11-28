@@ -1,7 +1,7 @@
-#include "coord.h"
-
-#include "renderer.h"
 #include <math.h>
+
+#include "coord.h"
+#include "renderer.h"
 
 double coord_real_dist(struct coord_real a, struct coord_real b) {
   return sqrt(pow(a.nw - b.nw, 2) + pow(a.ne - b.ne, 2) + pow(a.up - b.up, 2));

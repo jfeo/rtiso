@@ -2,7 +2,10 @@ with import <nixpkgs> { };
 
 stdenv.mkDerivation {
   name = "c";
-  nativeBuildInputs = [ pkg-config ];
+  nativeBuildInputs = [
+    pkg-config
+    gdb
+  ];
   buildInputs = [
     glfw
     glew
@@ -10,7 +13,7 @@ stdenv.mkDerivation {
     libGLU
     soil
     freetype
-    gdb
+    cmocka
   ];
   shellHook = "";
 }
