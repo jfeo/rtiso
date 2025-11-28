@@ -1,5 +1,6 @@
 #include <math.h>
 
+#include "constants.h"
 #include "coord.h"
 #include "renderer.h"
 

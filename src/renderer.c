@@ -4,6 +4,7 @@
 #include "renderer.h"
 
 #include "array.h"
+#include "constants.h"
 #include "coord.h"
 #include "gl.h"
 #include "interaction.h"

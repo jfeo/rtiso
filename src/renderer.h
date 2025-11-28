@@ -14,10 +14,6 @@
 #include "map.h"
 #include "texture.h"
 
-#define RTISO_2_PI 2 * acos(-1.0)
-#define RTISO_PI acos(-1.0)
-#define SQRT_2 1.414213562373095048801688724209698078569671875376948073176f
-
 extern struct coord_window window_size;
 extern struct coord_camera ortho_size;
 extern struct coord_camera camera_pos;

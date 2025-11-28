@@ -1,8 +1,11 @@
 #include <stddef.h>
 
+#include "constants.h"
 #include "phys.h"
 #include "test.h"
 #include "unit.h"
+
+#define EPSILON 0E-5
 
 static void test_unit_update_action_move() {
   struct phys_radial *r = phys_radial_create((struct coord_real){0});
@@ -12,9 +15,11 @@ static void test_unit_update_action_move() {
   u->action.data.move.to.nw = 10.0;
 
   units_update(10.0);
-  u->entity->phys->vel.ne = 5.0f;
-  u->entity->phys->vel.nw = 5.0f;
-  u->entity->phys->vel.up = 0.0f;
+
+  float expected = 5.0 * 10.0 / (SQRT_2 * 10.0f);
+  assert_float_equal(u->entity->phys->vel.ne, expected, EPSILON);
+  assert_float_equal(u->entity->phys->vel.nw, expected, EPSILON);
+  assert_float_equal(u->entity->phys->vel.up, 0.0f, EPSILON);
 
   free(u);
   free(r);
